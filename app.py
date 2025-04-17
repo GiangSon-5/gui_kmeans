@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
-
+import gc
 
 # --- Load dữ liệu & mô hình ---
 @st.cache_data
@@ -16,6 +16,7 @@ def load_data():
     df = joblib.load(data_path)
     if not df.index.dtype == "object":
         df.index = df.index.astype(str)
+    gc.collect()
     return df
 
 
@@ -24,6 +25,7 @@ def load_models():
     base_path = os.path.dirname(__file__)
     scaler = joblib.load(os.path.join(base_path, "models", "rfm_scaler.pkl"))
     model = joblib.load(os.path.join(base_path, "models", "kmeans_model.pkl"))
+    gc.collect()
     return scaler, model
 
 
@@ -185,6 +187,7 @@ st.markdown(
 # --- Tabs chính ---
 tab1, tab2 = st.tabs(["📊 Thực hiện phân cụm", "📚 Giới thiệu & Quy trình"])
 
+
 # --- Tab 1: Thực hiện phân cụm ---
 with tab1:
     df_rfm = load_data()
@@ -220,9 +223,7 @@ with tab1:
 
         if customer_id in df_rfm.index:
             try:
-                rfm_row = df_rfm.loc[[customer_id]][
-                    ["Recency", "Frequency", "Monetary"]
-                ]
+                rfm_row = df_rfm.loc[[customer_id]][["Recency", "Frequency", "Monetary"]]
                 scaled_input = scaler.transform(rfm_row)
                 cluster_label = model.predict(scaled_input)[0]
                 cluster_name = interpret_cluster(cluster_label)
@@ -240,31 +241,20 @@ with tab1:
                     # Chia layout cho các chỉ số RFM
                     metric_cols = st.columns(3)
                     with metric_cols[0]:
-                        st.markdown(
-                            '<div class="metric-container">', unsafe_allow_html=True
-                        )
+                        st.markdown('<div class="metric-container">', unsafe_allow_html=True)
                         st.metric("📅 Recency", f"{rfm_row['Recency'].values[0]} ngày")
                         st.markdown("</div>", unsafe_allow_html=True)
 
                     with metric_cols[1]:
-                        st.markdown(
-                            '<div class="metric-container">', unsafe_allow_html=True
-                        )
-                        st.metric(
-                            "🔁 Frequency", f"{rfm_row['Frequency'].values[0]} lần"
-                        )
+                        st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                        st.metric("🔁 Frequency", f"{rfm_row['Frequency'].values[0]} lần")
                         st.markdown("</div>", unsafe_allow_html=True)
 
                     with metric_cols[2]:
-                        st.markdown(
-                            '<div class="metric-container">', unsafe_allow_html=True
-                        )
-                        st.metric(
-                            "💰 Monetary", f"{rfm_row['Monetary'].values[0]:,.0f} đ"
-                        )
+                        st.markdown('<div class="metric-container">', unsafe_allow_html=True)
+                        st.metric("💰 Monetary", f"{rfm_row['Monetary'].values[0]:,.0f} đ")
                         st.markdown("</div>", unsafe_allow_html=True)
 
-                    # Phân cụm và chính sách
                     st.markdown('<div style="margin-top:1rem">', unsafe_allow_html=True)
                     st.metric("🎯 Cụm khách hàng", f"Cụm {cluster_label}", cluster_name)
 
@@ -294,6 +284,8 @@ with tab1:
                     st.markdown("</div>", unsafe_allow_html=True)
                     st.markdown("</div>", unsafe_allow_html=True)
 
+                gc.collect()  
+
                 with col_hist:
                     st.markdown('<div class="card">', unsafe_allow_html=True)
                     st.markdown(
@@ -314,32 +306,27 @@ with tab1:
 
                     # Biểu đồ kết hợp (Recency, Frequency, Monetary)
                     fig, ax = plt.subplots()
-
-                    # Dữ liệu cho biểu đồ
                     labels = ["Recency", "Frequency", "Monetary"]
                     values = [
                         rfm_row["Recency"].values[0],
                         rfm_row["Frequency"].values[0],
                         rfm_row["Monetary"].values[0],
                     ]
-
-                    # Màu sắc cho mỗi chỉ số
                     colors = ["#1E88E5", "#ff7043", "#43a047"]
 
                     ax.bar(labels, values, color=colors)
-
-                    # Thiết lập tiêu đề và nhãn
                     ax.set_title("Biểu đồ RFM")
                     ax.set_ylabel("Giá trị")
-
-                    # Hiển thị biểu đồ
                     st.pyplot(fig)
+                    plt.close(fig)  
+                    gc.collect()    
 
                     st.markdown("</div>", unsafe_allow_html=True)
 
-                st.toast(
-                    f"✅ Khách hàng {customer_id} thuộc cụm **{cluster_label} – {cluster_name}**"
-                )
+                gc.collect()  
+
+                st.toast(f"✅ Khách hàng {customer_id} thuộc cụm **{cluster_label} – {cluster_name}**")
+
             except Exception as e:
                 st.error(f"❌ Không thể phân cụm: {str(e)}")
         else:
@@ -355,17 +342,10 @@ with tab1:
         )
 
         tab_customers = st.tabs(
-            [
-                "Khách hàng 1",
-                "Khách hàng 2",
-                "Khách hàng 3",
-                "Khách hàng 4",
-                "Khách hàng 5",
-            ]
+            ["Khách hàng 1", "Khách hàng 2", "Khách hàng 3", "Khách hàng 4", "Khách hàng 5"]
         )
         customer_data = []
 
-        # Tạo tab cho từng khách hàng
         for i, tab in enumerate(tab_customers):
             with tab:
                 st.markdown(f"#### 👤 Khách hàng {i+1}")
@@ -384,10 +364,7 @@ with tab1:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        # Nút phân cụm
-        if st.button(
-            "🎯 Phân cụm khách hàng", use_container_width=True, type="primary"
-        ):
+        if st.button("🎯 Phân cụm khách hàng", use_container_width=True, type="primary"):
             df_customer = pd.DataFrame(
                 customer_data, columns=["Recency", "Frequency", "Monetary"]
             )
@@ -398,19 +375,15 @@ with tab1:
                 df_customer["Cụm"] = clusters
                 df_customer["Phân nhóm"] = df_customer["Cụm"].apply(interpret_cluster)
 
-                # Hiển thị kết quả trong bảng
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 st.markdown(
                     '<h3 class="sub-header">📊 Kết quả phân cụm</h3>',
                     unsafe_allow_html=True,
                 )
 
-                # Tạo bảng kết quả
                 result_df = pd.DataFrame(
                     {
-                        "Khách hàng": [
-                            f"Khách hàng {i+1}" for i in range(len(df_customer))
-                        ],
+                        "Khách hàng": [f"Khách hàng {i+1}" for i in range(len(df_customer))],
                         "Recency": df_customer["Recency"],
                         "Frequency": df_customer["Frequency"],
                         "Monetary": df_customer["Monetary"],
@@ -423,63 +396,38 @@ with tab1:
                     result_df,
                     use_container_width=True,
                     column_config={
-                        "Khách hàng": st.column_config.TextColumn(
-                            "Khách hàng", width="medium"
-                        ),
-                        "Recency": st.column_config.NumberColumn(
-                            "Recency (ngày)", format="%d"
-                        ),
-                        "Frequency": st.column_config.NumberColumn(
-                            "Frequency (lần)", format="%d"
-                        ),
-                        "Monetary": st.column_config.NumberColumn(
-                            "Monetary (nghìn đ)", format="%d"
-                        ),
+                        "Khách hàng": st.column_config.TextColumn("Khách hàng", width="medium"),
+                        "Recency": st.column_config.NumberColumn("Recency (ngày)", format="%d"),
+                        "Frequency": st.column_config.NumberColumn("Frequency (lần)", format="%d"),
+                        "Monetary": st.column_config.NumberColumn("Monetary (nghìn đ)", format="%d"),
                         "Cụm": st.column_config.NumberColumn("Cụm", format="%d"),
-                        "Phân nhóm": st.column_config.TextColumn(
-                            "Phân nhóm", width="large"
-                        ),
+                        "Phân nhóm": st.column_config.TextColumn("Phân nhóm", width="large"),
                     },
                 )
                 st.markdown("</div>", unsafe_allow_html=True)
 
-                # Chi tiết từng khách hàng
                 for i, row in df_customer.iterrows():
-                    with st.expander(
-                        f"👤 Chi tiết khách hàng {i+1} (Cụm {row['Cụm']})",
-                        expanded=False,
-                    ):
+                    with st.expander(f"👤 Chi tiết khách hàng {i+1} (Cụm {row['Cụm']})", expanded=False):
                         col_detail, col_policy = st.columns([3, 2])
 
                         with col_detail:
-                            # Hiển thị metric
                             metric_cols = st.columns(3)
                             with metric_cols[0]:
-                                st.markdown(
-                                    '<div class="metric-container">',
-                                    unsafe_allow_html=True,
-                                )
+                                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
                                 st.metric("📅 Recency", f"{row['Recency']} ngày")
                                 st.markdown("</div>", unsafe_allow_html=True)
 
                             with metric_cols[1]:
-                                st.markdown(
-                                    '<div class="metric-container">',
-                                    unsafe_allow_html=True,
-                                )
+                                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
                                 st.metric("🔁 Frequency", f"{row['Frequency']} lần")
                                 st.markdown("</div>", unsafe_allow_html=True)
 
                             with metric_cols[2]:
-                                st.markdown(
-                                    '<div class="metric-container">',
-                                    unsafe_allow_html=True,
-                                )
+                                st.markdown('<div class="metric-container">', unsafe_allow_html=True)
                                 st.metric("💰 Monetary", f"{row['Monetary']:,.0f} đ")
                                 st.markdown("</div>", unsafe_allow_html=True)
 
                         with col_policy:
-                            # Chính sách cho từng khách hàng
                             policy_color = "#e3f2fd"
                             policy_border = "#1E88E5"
                             policy_text = "Tiềm năng để upsell"
@@ -503,40 +451,25 @@ with tab1:
                                 unsafe_allow_html=True,
                             )
 
-                            st.metric(
-                                "🎯 Cụm khách hàng",
-                                f"Cụm {row['Cụm']}",
-                                row["Phân nhóm"],
-                            )
+                            st.metric("🎯 Cụm khách hàng", f"Cụm {row['Cụm']}", row["Phân nhóm"])
 
-                        # **Hiển thị biểu đồ RFM**
+                        # Biểu đồ RFM
                         st.subheader("📊 Biểu đồ RFM")
-                        fig, ax = plt.subplots(
-                            figsize=(16, 4)
-                        )  # Điều chỉnh kích thước biểu đồ (chiều rộng, chiều cao)
-
-                        # Dữ liệu cho biểu đồ
+                        fig, ax = plt.subplots(figsize=(16, 4))
                         labels = ["Recency", "Frequency", "Monetary"]
-                        values = [
-                            row["Recency"],
-                            row["Frequency"],
-                            row["Monetary"],
-                        ]
-
-                        # Màu sắc cho mỗi chỉ số
+                        values = [row["Recency"], row["Frequency"], row["Monetary"]]
                         colors = ["#1E88E5", "#ff7043", "#43a047"]
-
                         ax.bar(labels, values, color=colors)
-
-                        # Thiết lập tiêu đề và nhãn
                         ax.set_title(f"Biểu đồ RFM Khách hàng {i+1}")
                         ax.set_ylabel("Giá trị")
 
-                        # Hiển thị biểu đồ
                         st.pyplot(fig)
+                        plt.close(fig)     # 🔒 Đóng biểu đồ sau khi dùng
+                        gc.collect()       # 🧹 Thu dọn bộ nhớ sau mỗi biểu đồ
 
             except Exception as e:
                 st.error(f"❌ Lỗi khi phân cụm: {str(e)}")
+
 
                 st.error(f"❌ Lỗi khi phân cụm: {str(e)}")
 
